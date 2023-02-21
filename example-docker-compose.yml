@@ -1,0 +1,90 @@
+version: "3.8"
+
+x-logging:
+  &logging
+  driver: journald
+
+services:
+  chainflip-node:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    user: flip
+    container_name: chainflip-node
+    entrypoint: "/usr/bin/chainflip-node"
+    command: "--chain /etc/chainflip/chainspecs/perseverance.json --base-path /etc/chainflip/chaindata --node-key-file /etc/chainflip/keys/node_key_file --validator --state-cache-size 0"
+    ports:
+      - "30333:30333"
+      - "9944:9944"
+    expose:
+      - "9944" # Websocket port for Chainflip Engine
+      - "30333"
+      - "9615" # Substrate prometheus port
+    volumes:
+      # Chain data
+      - ./chainflip-chaindata:/etc/chainflip/chaindata
+      # Node Key File
+      - ./node_key_file:/etc/chainflip/keys/node_key_file
+      # Perserverence config file
+      # - ./perseverance.json:/etc/chainflip/chainspecs/perseverance.json
+    logging: *logging
+    networks:
+      - chainflip
+  chainflip-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    user: flip
+    container_name: chainflip-engine
+    entrypoint: "/usr/bin/chainflip-engine"
+    command: "--config-path /etc/chainflip/config/Default.toml"
+    ports:
+      - "8078:8078"
+    expose:
+      - "8078"
+    volumes:
+      # Chainflip Engine configuration file
+      - ./example-chainflip-config.toml:/etc/chainflip/chainspecs/perseverance.json
+      # Ethereum private key file
+      - ./ethereum_key_file:/etc/chainflip/keys/ethereum_key_file
+    logging: *logging
+    networks:
+      - chainflip
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    user: root
+    volumes:
+      - prometheus:/data
+      - ./monitoring/prometheus/prometheus.yaml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/data/prom"
+      - "--log.level=warn"
+      - "--web.enable-lifecycle"
+      - "--storage.tsdb.min-block-duration=2h"
+      - "--storage.tsdb.max-block-duration=2h"
+      - "--web.listen-address=0.0.0.0:9090"
+    logging: *logging
+    networks:
+      - chainflip
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    expose:
+      - 9100
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+    logging: *logging
+    networks:
+      - chainflip
+
+networks:
+  chainflip:
+
+volumes:
+  prometheus: {}
+ 
