@@ -6,7 +6,7 @@ on:
       - master
 
 env:
-  IMAGE_NAME: thunderhead-labs/chainflip-containerized
+  IMAGE_NAME: thunderheados/chainflip-containerized
   DOCKER_BUILDKIT: 1
 
 jobs:
